@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Sign Up{% endblock %}
+{% block content %}
+<div class="wrapper">
+   <div class="title">Signup Form</div>
+   <form id="signupForm" action="{{ url_for('auth.sign_up') }}" method="POST" novalidate>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+         {% if messages %}
+            <ul class="flashes">
+               {% for category, message in messages %}
+                  <li class="{{ category }}">{{ message }}</li>
+               {% endfor %}
+            </ul>
+         {% endif %}
+      {% endwith %}
+      <div id="signup-errors" style="display:none;"></div>
+      <div class="field" style="margin-bottom:32px;">
+         <input type="text" name="firstName" required>
+         <label>First Name</label>
+         <div id="error-firstName" class="error-msg" style="display:none; color:#842029; background:transparent; border:none; font-size:10px; margin-top:2px; margin-bottom:0; padding:0 6px; z-index:1; position:relative;"></div>
+      </div>
+      <div class="field" style="margin-bottom:32px;">
+         <input type="email" name="email" required>
+         <label>Email Address</label>
+         <div id="error-email" class="error-msg" style="display:none; color:#842029; background:transparent; border:none; font-size:10px; margin-top:2px; margin-bottom:0; padding:0 6px; z-index:1; position:relative;"></div>
+      </div>
+      <div class="field" style="margin-bottom:32px; position:relative;">
+         <input type="password" name="password1" id="signupPassword1" required>
+         <label for="signupPassword1">Password</label>
+         <button type="button" id="toggleSignupPassword1" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:18px; color:#4158d0;">👁️</button>
+         <div id="error-password1" class="error-msg" style="display:none; color:#842029; background:transparent; border:none; font-size:10px; margin-top:2px; margin-bottom:0; padding:0 6px; z-index:1; position:relative;"></div>
+      </div>
+      <div class="field" style="margin-bottom:32px; position:relative;">
+         <input type="password" name="password2" id="signupPassword2" required>
+         <label for="signupPassword2">Confirm Password</label>
+         <button type="button" id="toggleSignupPassword2" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:18px; color:#4158d0;">👁️</button>
+         <div id="error-password2" class="error-msg" style="display:none; color:#842029; background:transparent; border:none; font-size:10px; margin-top:2px; margin-bottom:0; padding:0 6px; z-index:1; position:relative;"></div>
+      </div>
+      <div class="content">
+         <div class="checkbox">
+            <input type="checkbox" id="remember-me">
+            <label for="remember-me">Remember me</label>
+         </div>
+      </div>
+      <div class="field">
+         <input type="submit" id="signupBtn" value="Signup">
+      </div>
+      <div class="login-link">
+         Already a member? <a href="{{ url_for('auth.login') }}">Login now</a>
+      </div>
+   </form>
+</div>
+<script>
+document.getElementById('signupForm').addEventListener('submit', function(e) {
+   var form = this;
+   var firstName = form.firstName.value.trim();
+   var email = form.email.value.trim();
+   var password1 = form.password1.value;
+   var password2 = form.password2.value;
+   var valid = true;
+   ['firstName','email','password1','password2'].forEach(function(field) {
+      document.getElementById('error-' + field).style.display = 'none';
+      document.getElementById('error-' + field).innerText = '';
+   });
+   if (!firstName) {
+      document.getElementById('error-firstName').innerText = 'First name is required.';
+      document.getElementById('error-firstName').style.display = 'block';
+      valid = false;
+   } else if (firstName.length < 2) {
+      document.getElementById('error-firstName').innerText = 'First name must be greater than 1 character.';
+      document.getElementById('error-firstName').style.display = 'block';
+      valid = false;
+   }
+   if (!email) {
+      document.getElementById('error-email').innerText = 'Email is required.';
+      document.getElementById('error-email').style.display = 'block';
+      valid = false;
+   } else if (email.length < 4) {
+      document.getElementById('error-email').innerText = 'Email must be greater than 3 characters.';
+      document.getElementById('error-email').style.display = 'block';
+      valid = false;
+   }
+   if (!password1) {
+      document.getElementById('error-password1').innerText = 'Password is required.';
+      document.getElementById('error-password1').style.display = 'block';
+      valid = false;
+   } else if (password1.length < 7) {
+      document.getElementById('error-password1').innerText = 'Password must be at least 7 characters.';
+      document.getElementById('error-password1').style.display = 'block';
+      valid = false;
+   }
+   if (!password2) {
+      document.getElementById('error-password2').innerText = 'Confirm password is required.';
+      document.getElementById('error-password2').style.display = 'block';
+      valid = false;
+   } else if (password1 !== password2) {
+      document.getElementById('error-password2').innerText = "Passwords don't match.";
+      document.getElementById('error-password2').style.display = 'block';
+      valid = false;
+   }
+   if (!valid) {
+      e.preventDefault();
+   }
+});
+document.getElementById('toggleSignupPassword1').addEventListener('click', function() {
+   var pwd = document.getElementById('signupPassword1');
+   if (pwd.type === 'password') {
+      pwd.type = 'text';
+      this.textContent = '🙈';
+   } else {
+      pwd.type = 'password';
+      this.textContent = '👁️';
+   }
+});
+document.getElementById('toggleSignupPassword2').addEventListener('click', function() {
+   var pwd = document.getElementById('signupPassword2');
+   if (pwd.type === 'password') {
+      pwd.type = 'text';
+      this.textContent = '🙈';
+   } else {
+      pwd.type = 'password';
+      this.textContent = '👁️';
+   }
+});
+</script>
+{% endblock %}

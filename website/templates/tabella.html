@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% block title %}Tabella{% endblock %}
+{% block content %}
+<div class="tabella-container">
+  <table class="tabella-moderna">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Presenza</th>
+        <th>Nome</th>
+        <th>Stato</th>
+        <th>Punti</th>
+        <th>Probabilità</th>
+  <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for i in range(1, 23) %}
+      <tr>
+        <td>{{ i }}</td>
+        <td><input type="checkbox" checked></td>
+        <td><input type="text" value="Persona {{ i }}" class="input-nome"></td>
+        <td>
+          <div class="stato-cerchi">
+            {% for j in range(1, 11) %}
+              <span class="cerchio stato-{{i}}-{{j}}" data-row="{{i}}" data-index="{{j}}" style="background-color: transparent;"></span>
+            {% endfor %}
+          </div>
+        </td>
+        <td><input type="text" value="{{ i * 10 }}" class="input-punti"></td>
+        <td><input type="text" value="{{ 100 - i*2 }}%" class="input-prob"></td>
+  <td><button class="btn-plus" data-row="{{i}}" aria-label="Aumenta" title="Aumenta" style="font-size:2.2rem; font-weight:700; color:#fff; background:linear-gradient(135deg,#4158d0,#c850c0); border:none; border-radius:50%; width:48px; height:48px; box-shadow:0 4px 16px rgba(65,88,208,0.18); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform 0.15s;">+</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Dice Button PNG -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
+  <div style="position: relative; width: 300px; height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;">
+    <div id="dice-main-number" style="position: relative; top: 0; left: 50%; transform: translateX(-50%); z-index: 2; width: 300px; height: 60px; background: linear-gradient(135deg,#4158d0,#c850c0); border-radius: 50px; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; font-family: 'Poppins', sans-serif; font-weight: 800; color: #fff; box-shadow: 0 4px 24px rgba(65,88,208,0.18); border: 4px solid #fff; pointer-events: none; opacity: 0; transition: opacity 0.3s;"></div>
+    <button id="diceBtn" class="dice-button-img" aria-label="Lancia il dado" style="background:none; border:none; padding:0; border-radius:50%; box-shadow:0 8px 32px rgba(65,88,208,0.22); cursor:pointer; width:300px; height:300px; display:flex; align-items:center; justify-content:center; overflow:hidden; position: relative;">
+  <dotlottie-wc id="main-dice-lottie" src="https://lottie.host/be5df32d-5f20-4015-a1e4-b0b56c8934f8/PfUeITOeEI.lottie" style="width: 300px; height: 300px" autoplay loop></dotlottie-wc>
+    </button>
+  </div>
+</div>
+
+<!-- Overlay domanda -->
+<div id="question-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(26,11,46,0.85); z-index:3000; justify-content:center; align-items:center;">
+  <div style="background:rgba(255,255,255,0.08); border-radius:24px; box-shadow:0 8px 32px rgba(107,43,255,0.2); padding:48px 32px; text-align:center; font-family:'Poppins',sans-serif; font-size:2rem; color:#fff; max-width:400px;">
+    <div id="question-text" style="margin-bottom:32px; font-size:2.2rem; font-weight:700;">La persona sorteggiata ha risposto correttamente?</div>
+    <button id="btn-correct" style="background:linear-gradient(135deg,#4caf50,#43ea7f); color:#fff; font-size:1.3rem; font-weight:600; border:none; border-radius:12px; padding:16px 32px; margin:0 16px; cursor:pointer;">Sì</button>
+    <button id="btn-wrong" style="background:linear-gradient(135deg,#e74c3c,#ff6b6b); color:#fff; font-size:1.3rem; font-weight:600; border:none; border-radius:12px; padding:16px 32px; margin:0 16px; cursor:pointer;">No</button>
+  </div>
+</div>
+
+<!-- Dice Animation Overlay -->
+<div id="dice-animation-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(26,11,46,0.85); z-index:4000; justify-content:center; align-items:center;">
+  <div style="position:relative; width:300px; height:300px; display:flex; align-items:center; justify-content:center;">
+  <dotlottie-wc id="dice-lottie" src="https://lottie.host/be5df32d-5f20-4015-a1e4-b0b56c8934f8/PfUeITOeEI.lottie" style="width: 300px; height: 300px; position:absolute; left:0; top:0; z-index:1;" autoplay loop></dotlottie-wc>
+    <div id="dice-number" style="display:none; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2; font-size:5rem; font-family:'Poppins',sans-serif; font-weight:800; color:#fff; text-shadow:0 4px 32px #4158d0,0 2px 8px #c850c0; background:rgba(65,88,208,0.18); border-radius:24px; padding:24px 64px; box-shadow:0 8px 32px rgba(65,88,208,0.18); transition:opacity 0.5s; pointer-events:none;"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.8.1/dist/dotlottie-wc.js" type="module"></script>
+<script>
+// Dado Lottie con cerchio numero
+const diceBtn = document.getElementById('diceBtn');
+const diceLottie = document.getElementById('main-dice-lottie');
+const diceMainNumber = document.getElementById('dice-main-number');
+let diceTimeout = null;
+
+// All'avvio parte l'animazione, poi si ferma
+window.addEventListener('DOMContentLoaded', () => {
+  if (diceLottie) {
+    diceLottie.setAttribute('autoplay', '');
+    diceLottie.removeAttribute('loop');
+    setTimeout(() => {
+      diceLottie.removeAttribute('autoplay');
+      diceLottie.frame = 120;
+    }, 2200); // durata animazione
+  }
+});
+
+function showDiceNumber(num) {
+  diceMainNumber.textContent = num;
+  diceMainNumber.style.opacity = '1';
+}
+
+function startDiceAnimation() {
+  // Nascondi il dado
+  diceLottie.style.display = 'none';
+  setTimeout(() => {
+    // Mostra e ricomincia animazione
+    diceLottie.style.display = '';
+    diceLottie.removeAttribute('autoplay');
+    diceLottie.frame = 0;
+    diceLottie.load?.(diceLottie.src);
+    setTimeout(() => {
+      diceLottie.setAttribute('autoplay','');
+      setTimeout(() => {
+        diceLottie.removeAttribute('autoplay');
+        diceLottie.frame = 120;
+      }, 2200);
+    }, 50);
+  }, 10);
+}
+
+diceBtn.addEventListener('click', function() {
+  this.classList.add('pressed');
+  setTimeout(()=>this.classList.remove('pressed'), 160);
+  // Estrai il numero
+  const row = Math.floor(Math.random() * 22) + 1;
+  // Ricomincia animazione Lottie ogni estrazione
+  startDiceAnimation();
+  // Mostra il numero dopo la fine dell'animazione (2.2s)
+  if (diceTimeout) clearTimeout(diceTimeout);
+  diceTimeout = setTimeout(function() {
+    showDiceNumber(row);
+    showQuestion(row);
+  }, 2200);
+});
+
+// Overlay domanda
+function showQuestion(row) {
+  const overlay = document.getElementById('question-overlay');
+  overlay.style.display = 'flex';
+  overlay.dataset.row = row;
+}
+document.getElementById('btn-correct').onclick = function() {
+  const row = document.getElementById('question-overlay').dataset.row;
+  // Trova la prima pallina vuota e colorala di verde
+  const cerchi = document.querySelectorAll('.stato-' + row + '-1, .stato-' + row + '-2, .stato-' + row + '-3, .stato-' + row + '-4, .stato-' + row + '-5, .stato-' + row + '-6, .stato-' + row + '-7, .stato-' + row + '-8, .stato-' + row + '-9, .stato-' + row + '-10');
+  for (let c of cerchi) {
+    if (c.style.backgroundColor === 'transparent' || c.style.backgroundColor === '') {
+      c.style.backgroundColor = '#4caf50';
+      break;
+    }
+  }
+  document.getElementById('question-overlay').style.display = 'none';
+};
+document.getElementById('btn-wrong').onclick = function() {
+  const row = document.getElementById('question-overlay').dataset.row;
+  // Trova la prima pallina vuota e colorala di rosso
+  const cerchi = document.querySelectorAll('.stato-' + row + '-1, .stato-' + row + '-2, .stato-' + row + '-3, .stato-' + row + '-4, .stato-' + row + '-5, .stato-' + row + '-6, .stato-' + row + '-7, .stato-' + row + '-8, .stato-' + row + '-9, .stato-' + row + '-10');
+  for (let c of cerchi) {
+    if (c.style.backgroundColor === 'transparent' || c.style.backgroundColor === '') {
+      c.style.backgroundColor = '#e74c3c';
+      break;
+    }
+  }
+  document.getElementById('question-overlay').style.display = 'none';
+};
+
+// Colonna +
+document.querySelectorAll('.btn-plus').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    const row = btn.dataset.row;
+    showQuestion(row);
+  });
+});
+</script>
+
+{% endblock %}
+<style>
+@import url('https://fonts.googleapis.com/css?family=Poppins:400,500,600,700&display=swap');
+body {
+  font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
+  background: #f2f2f2;
+}
+.navbar-custom {
+  margin-bottom: 32px;
+  padding: 0 0 0 24px;
+}
+.navbar-custom ul {
+  list-style: none;
+  display: flex;
+  gap: 32px;
+  padding: 0;
+}
+.navbar-custom li {
+  display: inline-block;
+}
+.navbar-custom a {
+  color: #4158d0;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 1.1rem;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+.navbar-custom a:hover {
+  background: #e9e9f7;
+}
+.tabella-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 70vh;
+  width: 100%;
+  padding: 32px 0;
+  overflow-x: auto;
+}
+.tabella-moderna {
+  width: 98%;
+  max-width: 1100px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(65,88,208,0.10);
+  border-radius: 18px;
+  overflow: hidden;
+  margin: 0 auto;
+  border: 1.5px solid #c850c0;
+}
+.tabella-moderna th {
+  background: linear-gradient(-135deg, #c850c0, #4158d0);
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding: 20px 12px;
+  border-bottom: 2px solid #4158d0;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+.tabella-moderna td {
+  padding: 18px 10px;
+  border-bottom: 1px solid #e3e6ee;
+  text-align: center;
+  font-size: 1.05rem;
+  background: #fff;
+  transition: background 0.2s;
+}
+.tabella-moderna tbody tr:nth-child(even) td {
+  background: #f7f2fa;
+}
+.tabella-moderna tbody tr:hover td {
+  background: #e9e9f7;
+}
+.input-nome, .input-punti, .input-prob {
+  width: 90%;
+  padding: 8px 12px;
+  border: 1.5px solid #bfc7e3;
+  border-radius: 8px;
+  font-size: 1.05rem;
+  background: #f7f8fa;
+  transition: border 0.2s, background 0.2s;
+}
+.input-nome:focus, .input-punti:focus, .input-prob:focus {
+  border: 2px solid #4158d0;
+  background: #fff;
+}
+
+.stato-cerchi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  justify-content: center;
+  align-items: center;
+  min-width: 300px;
+  margin: 0 auto;
+}
+.cerchio {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2.5px solid #c850c0;
+  box-shadow: 0 2px 8px rgba(65,88,208,0.10);
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+  background: transparent;
+}
+
+@media (max-width: 1024px) and (min-width: 901px) {
+  .tabella-moderna {
+    width: 100%;
+    max-width: none;
+  }
+  .tabella-moderna th {
+    font-size: 1rem;
+    padding: 16px 8px;
+  }
+  .tabella-moderna td {
+    padding: 14px 6px;
+    font-size: 0.95rem;
+  }
+  .input-nome, .input-punti, .input-prob {
+    width: 85%;
+    padding: 6px 8px;
+    font-size: 0.95rem;
+  }
+  .stato-cerchi {
+    min-width: 160px;
+    gap: 4px;
+  }
+  .cerchio {
+    width: 16px;
+    height: 16px;
+  }
+}
+@media (max-width: 900px) {
+  .tabella-moderna {
+    width: 100%;
+    font-size: 0.95rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(65,88,208,0.10);
+  }
+  .tabella-moderna th, .tabella-moderna td {
+    padding: 10px 4px;
+    font-size: 0.95rem;
+  }
+  .navbar-custom ul {
+    gap: 16px;
+  }
+  .stato-cerchi {
+    min-width: 120px;
+    gap: 3px;
+  }
+.cerchio {
+  width: 14px;
+  height: 14px;
+  }
+}
+
+/* Dice Button Styles */
+.btn-plus {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg,#4158d0,#c850c0);
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  box-shadow: 0 4px 16px rgba(65,88,208,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.btn-plus:active,
+.btn-plus.pressed {
+  transform: translateY(2px) scale(0.97);
+  box-shadow: 0 2px 8px rgba(65,88,208,0.10);
+}
+.btn-plus:focus {
+  outline: 3px solid rgba(21,156,228,0.18);
+  outline-offset: 3px;
+}
+.dice-button-img:active,
+.dice-button-img.pressed {
+  transform: translateY(3px) scale(0.98);
+  box-shadow: 0 3px 10px rgba(65,88,208,0.12);
+}
+.dice-button-img:focus {
+  outline: 3px solid rgba(21,156,228,0.18);
+  outline-offset: 3px;
+}
+</style>

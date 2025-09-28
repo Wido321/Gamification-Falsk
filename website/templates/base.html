@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+      integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+      crossorigin="anonymous"
+    />
+
+      <!-- Custom CSS for full aesthetics -->
+      <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+      <!-- Lottie Web Component -->
+      <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.8.1/dist/dotlottie-wc.js" type="module"></script>
+
+    <title>{% block title %}Home{% endblock %}</title>
+  </head>
+  <body>
+    <header style="width:100%; background: linear-gradient(-135deg, #c850c0, #4158d0); color:#fff; padding:0; margin-bottom:20px;">
+      <div class="container-fluid" style="display:flex; align-items:center; justify-content:space-between; height:70px;">
+        <div style="font-size:2rem; font-weight:700; letter-spacing:1px;">Gamification</div>
+        <nav style="display:flex; gap:24px;">
+          <div style="display:flex; gap:24px;">
+            {% if request.path in ['/', '/login', '/sign-up'] %}
+              <a href="/" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:{% if request.path=='/' %}3px solid #fff{% else %}none{% endif %}; padding-bottom:2px;">Start</a>
+              <a href="/login" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:{% if request.path=='/login' %}3px solid #fff{% else %}none{% endif %}; padding-bottom:2px;">Login</a>
+              <a href="/sign-up" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:{% if request.path=='/sign-up' %}3px solid #fff{% else %}none{% endif %}; padding-bottom:2px;">Sign Up</a>
+            {% elif request.path == '/home' %}
+              <a href="/home" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:3px solid #fff; padding-bottom:2px;">Home</a>
+              <a href="/tabella" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; padding-bottom:2px;">Tabella</a>
+              <a href="/logout" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; margin-left:32px;">Logout</a>
+            {% elif request.path == '/tabella' %}
+              <a href="/home" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:{% if request.path=='/home' %}3px solid #fff{% else %}none{% endif %}; padding-bottom:2px;">Home</a>
+              <a href="/tabella" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:3px solid #fff; padding-bottom:2px;">Tabella</a>
+              <a href="/logout" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; margin-left:32px;">Logout</a>
+            {% else %}
+              <a href="/home" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:{% if request.path=='/home' %}3px solid #fff{% else %}none{% endif %}; padding-bottom:2px;">Home</a>
+              <a href="/login" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:{% if request.path=='/login' %}3px solid #fff{% else %}none{% endif %}; padding-bottom:2px;">Login</a>
+              <a href="/sign-up" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:{% if request.path=='/sign-up' %}3px solid #fff{% else %}none{% endif %}; padding-bottom:2px;">Sign Up</a>
+              {% if user.is_authenticated %}
+                <a href="/logout" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; margin-left:32px;">Logout</a>
+              {% endif %}
+            {% endif %}
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if
+    messages %} {% for category, message in messages %} {% if category ==
+    'error' %}
+    <div class="alert alert-danger alter-dismissable fade show" role="alert">
+      {{ message }}
+      <button type="button" class="close" data-dismiss="alert">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+    {% else %}
+    <div class="alert alert-success alter-dismissable fade show" role="alert">
+      {{ message }}
+      <button type="button" class="close" data-dismiss="alert">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+    {% endif %} {% endfor %} {% endif %} {% endwith %}
+
+    <div class="container">{% block content %} {% endblock %}</div>
+    <script
+      src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+      integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+      integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
+      integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+      crossorigin="anonymous"
+    ></script>
+
+{% block javascript %}
+    <script type="text/javascript">
+      function deleteNote(noteId) {
+  fetch("/delete-note", {
+    method: "POST",
+    body: JSON.stringify({ noteId: noteId }),
+  }).then((_res) => {
+    window.location.href = "/";
+  });
+  }
+</script>
+{% endblock %}
+  </body>
+</html>

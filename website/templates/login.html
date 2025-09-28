@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<div class="wrapper">
+   <div class="title">Login Form</div>
+   <form id="loginForm" action="{{ url_for('auth.login') }}" method="POST" novalidate>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+         {% if messages %}
+            <ul class="flashes">
+               {% for category, message in messages %}
+                  <li class="{{ category }}">{{ message }}</li>
+               {% endfor %}
+            </ul>
+         {% endif %}
+      {% endwith %}
+      <div class="field" style="margin-bottom:32px; position:relative;">
+         <input type="email" name="email" required>
+         <label>Email Address</label>
+         <div id="error-login-email" class="error-msg" style="display:none; color:#842029; background:transparent; border:none; font-size:10px; margin-top:2px; margin-bottom:0; padding:0 6px; z-index:1; position:relative;"></div>
+      </div>
+      <div class="field" style="margin-bottom:32px; position:relative;">
+         <div style="position:relative;">
+            <input type="password" name="password" id="loginPassword" required>
+            <label>Password</label>
+            <button type="button" id="toggleLoginPassword" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:18px; color:#4158d0;">👁️</button>
+         </div>
+         <div id="error-login-password" class="error-msg" style="display:none; color:#842029; background:transparent; border:none; font-size:10px; margin-top:2px; margin-bottom:0; padding:0 6px; z-index:1; position:relative;"></div>
+      </div>
+      <div class="content">
+         <div class="checkbox">
+            <input type="checkbox" id="remember-me">
+            <label for="remember-me">Remember me</label>
+         </div>
+         <div class="pass-link">
+            <a href="#">Forgot password?</a>
+         </div>
+      </div>
+      <div class="field">
+         <input type="submit" value="Login">
+      </div>
+      <div class="signup-link">
+         Not a member? <a href="{{ url_for('auth.sign_up') }}">Signup now</a>
+      </div>
+   </form>
+</div>
+<script>
+document.getElementById('toggleLoginPassword').addEventListener('click', function() {
+   var pwd = document.getElementById('loginPassword');
+   if (pwd.type === 'password') {
+      pwd.type = 'text';
+      this.textContent = '🙈';
+   } else {
+      pwd.type = 'password';
+      this.textContent = '👁️';
+   }
+});
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+   var form = this;
+   var email = form.email.value.trim();
+   var password = form.password.value;
+   var valid = true;
+   document.getElementById('error-login-email').style.display = 'none';
+   document.getElementById('error-login-email').innerText = '';
+   document.getElementById('error-login-password').style.display = 'none';
+   document.getElementById('error-login-password').innerText = '';
+   if (!email) {
+      document.getElementById('error-login-email').innerText = 'Email is required.';
+      document.getElementById('error-login-email').style.display = 'block';
+      valid = false;
+   }
+   if (!password) {
+      document.getElementById('error-login-password').innerText = 'Password is required.';
+      document.getElementById('error-login-password').style.display = 'block';
+      valid = false;
+   }
+   if (!valid) {
+      e.preventDefault();
+   }
+});
+</script>
+{% endblock %}
