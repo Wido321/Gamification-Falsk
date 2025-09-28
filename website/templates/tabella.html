@@ -41,7 +41,7 @@
   <div style="position: relative; width: 300px; height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;">
     <div id="dice-main-number" style="position: relative; top: 0; left: 50%; transform: translateX(-50%); z-index: 2; width: 300px; height: 60px; background: linear-gradient(135deg,#4158d0,#c850c0); border-radius: 50px; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; font-family: 'Poppins', sans-serif; font-weight: 800; color: #fff; box-shadow: 0 4px 24px rgba(65,88,208,0.18); border: 4px solid #fff; pointer-events: none; opacity: 0; transition: opacity 0.3s;"></div>
     <button id="diceBtn" class="dice-button-img" aria-label="Lancia il dado" style="background:none; border:none; padding:0; border-radius:50%; box-shadow:0 8px 32px rgba(65,88,208,0.22); cursor:pointer; width:300px; height:300px; display:flex; align-items:center; justify-content:center; overflow:hidden; position: relative;">
-  <dotlottie-wc id="main-dice-lottie" src="https://lottie.host/be5df32d-5f20-4015-a1e4-b0b56c8934f8/PfUeITOeEI.lottie" style="width: 300px; height: 300px"></dotlottie-wc>
+  <dotlottie-wc id="main-dice-lottie" src="https://lottie.host/be5df32d-5f20-4015-a1e4-b0b56c8934f8/PfUeITOeEI.lottie" style="width: 300px; height: 300px" autoplay loop></dotlottie-wc>
     </button>
   </div>
 </div>
@@ -58,24 +58,28 @@
 <!-- Dice Animation Overlay -->
 <div id="dice-animation-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(26,11,46,0.85); z-index:4000; justify-content:center; align-items:center;">
   <div style="position:relative; width:300px; height:300px; display:flex; align-items:center; justify-content:center;">
-  <dotlottie-wc id="dice-lottie" src="https://lottie.host/be5df32d-5f20-4015-a1e4-b0b56c8934f8/PfUeITOeEI.lottie" style="width: 300px; height: 300px; position:absolute; left:0; top:0; z-index:1;"></dotlottie-wc>
+  <dotlottie-wc id="dice-lottie" src="https://lottie.host/be5df32d-5f20-4015-a1e4-b0b56c8934f8/PfUeITOeEI.lottie" style="width: 300px; height: 300px; position:absolute; left:0; top:0; z-index:1;" autoplay loop></dotlottie-wc>
     <div id="dice-number" style="display:none; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2; font-size:5rem; font-family:'Poppins',sans-serif; font-weight:800; color:#fff; text-shadow:0 4px 32px #4158d0,0 2px 8px #c850c0; background:rgba(65,88,208,0.18); border-radius:24px; padding:24px 64px; box-shadow:0 8px 32px rgba(65,88,208,0.18); transition:opacity 0.5s; pointer-events:none;"></div>
   </div>
 </div>
 
 <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.8.1/dist/dotlottie-wc.js" type="module"></script>
 <script>
-
 // Dado Lottie con cerchio numero
 const diceBtn = document.getElementById('diceBtn');
 const diceLottie = document.getElementById('main-dice-lottie');
 const diceMainNumber = document.getElementById('dice-main-number');
 let diceTimeout = null;
 
-// All'avvio il dado rimane fermo al frame 120
+// All'avvio parte l'animazione, poi si ferma
 window.addEventListener('DOMContentLoaded', () => {
   if (diceLottie) {
-    diceLottie.frame = 120;
+    diceLottie.setAttribute('autoplay', '');
+    diceLottie.removeAttribute('loop');
+    setTimeout(() => {
+      diceLottie.removeAttribute('autoplay');
+      diceLottie.frame = 120;
+    }, 2200); // durata animazione
   }
 });
 
@@ -85,13 +89,22 @@ function showDiceNumber(num) {
 }
 
 function startDiceAnimation() {
-  // Avvia animazione tramite play(), poi torna ferma al frame 120
-  diceLottie.frame = 0;
-  diceLottie.play();
+  // Nascondi il dado
+  diceLottie.style.display = 'none';
   setTimeout(() => {
-    diceLottie.pause();
-    diceLottie.frame = 120;
-  }, 2200);
+    // Mostra e ricomincia animazione
+    diceLottie.style.display = '';
+    diceLottie.removeAttribute('autoplay');
+    diceLottie.frame = 0;
+    diceLottie.load?.(diceLottie.src);
+    setTimeout(() => {
+      diceLottie.setAttribute('autoplay','');
+      setTimeout(() => {
+        diceLottie.removeAttribute('autoplay');
+        diceLottie.frame = 120;
+      }, 2200);
+    }, 50);
+  }, 10);
 }
 
 diceBtn.addEventListener('click', function() {
