@@ -19,7 +19,14 @@
       <tr>
         <td>{{ i }}</td>
         <td><input type="checkbox" checked></td>
-        <td><input type="text" value="Persona {{ i }}" class="input-nome"></td>
+          <td>
+            {% set cognomi = [
+              'BANDINI', 'BARACTARI', 'BARDARO', 'BASILI', 'BATTAGLIA', 'BERGHENTI', 'BOI', 'BONORETTI',
+              'CONTRERAS', 'FILIPPINI', 'FOGLIA', 'GIANINI', 'HUERTA', 'IOSUE', 'JABARI', 'LENA',
+              'PASCARELLA', 'PIGHI', 'PINOTTI', 'SOLI', 'VETRO', 'ZIVERI'
+            ] %}
+            {{ cognomi[i-1] }}
+          </td>
         <td>
           <div class="stato-cerchi">
             {% for j in range(1, 11) %}
@@ -39,7 +46,7 @@
 <!-- Dice Button PNG -->
 <div style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
   <div style="position: relative; width: 300px; height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;">
-    <div id="dice-main-number" style="position: relative; top: 0; left: 50%; transform: translateX(-50%); z-index: 2; width: 300px; height: 60px; background: linear-gradient(135deg,#4158d0,#c850c0); border-radius: 50px; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; font-family: 'Poppins', sans-serif; font-weight: 800; color: #fff; box-shadow: 0 4px 24px rgba(65,88,208,0.18); border: 4px solid #fff; pointer-events: none; opacity: 0; transition: opacity 0.3s;"></div>
+    <div id="dice-main-number" style="position: absolute; top: 0; left: 50%; transform: translate(-50%, 0); z-index: 2; width: 300px; height: 300px; background: linear-gradient(135deg,#4158d0,#c850c0); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 5rem; font-family: 'Poppins', sans-serif; font-weight: 800; color: #fff; box-shadow: 0 8px 32px rgba(65,88,208,0.22); border: 6px solid #fff; pointer-events: none; opacity: 0; transition: opacity 0.3s;"></div>
     <button id="diceBtn" class="dice-button-img" aria-label="Lancia il dado" style="background:none; border:none; padding:0; border-radius:50%; box-shadow:0 8px 32px rgba(65,88,208,0.22); cursor:pointer; width:300px; height:300px; display:flex; align-items:center; justify-content:center; overflow:hidden; position: relative;">
   <dotlottie-wc id="main-dice-lottie" src="https://lottie.host/be5df32d-5f20-4015-a1e4-b0b56c8934f8/PfUeITOeEI.lottie" style="width: 300px; height: 300px" autoplay loop></dotlottie-wc>
     </button>
@@ -69,7 +76,6 @@
 const diceBtn = document.getElementById('diceBtn');
 const diceLottie = document.getElementById('main-dice-lottie');
 const diceMainNumber = document.getElementById('dice-main-number');
-let diceTimeout = null;
 
 // All'avvio parte l'animazione, poi si ferma
 window.addEventListener('DOMContentLoaded', () => {
@@ -86,6 +92,10 @@ window.addEventListener('DOMContentLoaded', () => {
 function showDiceNumber(num) {
   diceMainNumber.textContent = num;
   diceMainNumber.style.opacity = '1';
+}
+
+function hideDiceNumber() {
+  diceMainNumber.style.opacity = '0';
 }
 
 function startDiceAnimation() {
@@ -114,12 +124,9 @@ diceBtn.addEventListener('click', function() {
   const row = Math.floor(Math.random() * 22) + 1;
   // Ricomincia animazione Lottie ogni estrazione
   startDiceAnimation();
-  // Mostra il numero dopo la fine dell'animazione (2.2s)
-  if (diceTimeout) clearTimeout(diceTimeout);
-  diceTimeout = setTimeout(function() {
-    showDiceNumber(row);
-    showQuestion(row);
-  }, 2200);
+  // Mostra subito il numero
+  showDiceNumber(row);
+  showQuestion(row);
 });
 
 // Overlay domanda
