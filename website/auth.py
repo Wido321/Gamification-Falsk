@@ -45,6 +45,8 @@ def sign_up():
 
         if not email or not first_name or not password1 or not password2:
             flash('All fields are required.', category='error')
+        elif email not in ['wido2317@gmail.com', 'monical@liceomarconi.parma.it']:
+            flash('Only specific emails are allowed to sign up.', category='error')
         else:
             user = User.query.filter_by(email=email).first()
             if user:
