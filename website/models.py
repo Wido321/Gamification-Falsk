@@ -17,4 +17,5 @@ class Tabella(db.Model):
     checked = db.Column(db.Boolean, default=False, nullable=False)
     punti = db.Column(db.Integer, default=0, nullable=False)
     probabilita = db.Column(db.Float, default=0.0, nullable=False)
-    stato = db.Column(db.String(10), default='----------', nullable=False)  # 10 chars: - empty, G green, R red
+    stato = db.Column(db.String(20), default='-'*20, nullable=False)  # 20 chars: -- empty, Gf green facile, etc.
+
