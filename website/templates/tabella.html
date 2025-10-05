@@ -15,28 +15,22 @@
       </tr>
     </thead>
     <tbody>
-      {% for i in range(1, 23) %}
-      <tr>
-        <td>{{ i }}</td>
-        <td><input type="checkbox" checked></td>
-          <td>
-            {% set cognomi = [
-              'BANDINI', 'BARACTARI', 'BARDARO', 'BASILI', 'BATTAGLIA', 'BERGHENTI', 'BOI', 'BONORETTI',
-              'CONTRERAS', 'FILIPPINI', 'FOGLIA', 'GIANINI', 'HUERTA', 'IOSUE', 'JABARI', 'LENA',
-              'PASCARELLA', 'PIGHI', 'PINOTTI', 'SOLI', 'VETRO', 'ZIVERI'
-            ] %}
-            {{ cognomi[i-1] }}
-          </td>
+      {% for row in tabella_data %}
+      <tr data-id="{{ row.id }}">
+        <input type="hidden" class="stato-hidden" value="{{ row.stato }}">
+        <td>{{ row.id }}</td>
+        <td><input type="checkbox" {% if row.checked %}checked{% endif %} class="presence-checkbox" data-row="{{ row.id }}"></td>
+        <td>{{ row.cognome }}</td>
         <td>
           <div class="stato-cerchi">
-            {% for j in range(1, 11) %}
-              <span class="cerchio stato-{{i}}-{{j}}" data-row="{{i}}" data-index="{{j}}" style="background-color: transparent;"></span>
+            {% for j in range(10) %}
+              <span class="cerchio stato-{{ row.id }}-{{ j+1 }}" data-row="{{ row.id }}" data-index="{{ j+1 }}" style="background-color: {% if row.stato[j] == 'G' %}#a7f3bf{% elif row.stato[j] == 'R' %}#ffb6c1{% else %}transparent{% endif %}"></span>
             {% endfor %}
           </div>
         </td>
-        <td><input type="text" value="{{ i * 10 }}" class="input-punti"></td>
-        <td><input type="text" value="{{ 100 - i*2 }}%" class="input-prob"></td>
-  <td><button class="btn-plus" data-row="{{i}}" aria-label="Aumenta" title="Aumenta" style="font-size:2.2rem; font-weight:700; color:#fff; background:linear-gradient(135deg,#4158d0,#c850c0); border:none; border-radius:50%; width:48px; height:48px; box-shadow:0 4px 16px rgba(65,88,208,0.18); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform 0.15s;">+</button></td>
+        <td><input type="text" value="{{ row.punti }}" class="input-punti" readonly data-row="{{ row.id }}"></td>
+        <td><input type="text" value="{{ row.probabilita }}%" class="input-prob" readonly data-row="{{ row.id }}"></td>
+        <td><button class="btn-plus" data-row="{{ row.id }}" aria-label="Aumenta" title="Aumenta" style="font-size:2.2rem; font-weight:700; color:#fff; background:linear-gradient(135deg,#4158d0,#c850c0); border:none; border-radius:50%; width:48px; height:48px; box-shadow:0 4px 16px rgba(65,88,208,0.18); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform 0.15s;">+</button></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -54,6 +48,19 @@
 </div>
 
 <!-- Overlay domanda -->
+<!-- Overlay difficoltà -->
+<div id="difficulty-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(26,11,46,0.85); z-index:3500; justify-content:center; align-items:center;">
+  <div style="background:rgba(255,255,255,0.08); border-radius:24px; box-shadow:0 8px 32px rgba(107,43,255,0.2); padding:36px 28px; text-align:center; font-family:'Poppins',sans-serif; font-size:1.9rem; color:#fff; max-width:520px;">
+    <div id="difficulty-text" style="margin-bottom:24px; font-size:2rem; font-weight:700;">Che difficoltà deve essere la domanda?</div>
+    <div style="display:flex; justify-content:center; gap:12px;">
+      <button class="diff-btn" data-diff="facile" style="background:linear-gradient(135deg,#4caf50,#2e7d32); color:#fff; font-size:1.1rem; font-weight:700; border:none; border-radius:12px; padding:12px 20px; cursor:pointer;">Facile</button>
+      <button class="diff-btn" data-diff="normale" style="background:linear-gradient(135deg,#ffeb3b,#fbc02d); color:#000; font-size:1.1rem; font-weight:700; border:none; border-radius:12px; padding:12px 20px; cursor:pointer;">Normale</button>
+      <button class="diff-btn" data-diff="difficile" style="background:linear-gradient(135deg,#f44336,#d32f2f); color:#fff; font-size:1.1rem; font-weight:700; border:none; border-radius:12px; padding:12px 20px; cursor:pointer;">Difficile</button>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay domanda (dopo scelta difficoltà) -->
 <div id="question-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(26,11,46,0.85); z-index:3000; justify-content:center; align-items:center;">
   <div style="background:rgba(255,255,255,0.08); border-radius:24px; box-shadow:0 8px 32px rgba(107,43,255,0.2); padding:48px 32px; text-align:center; font-family:'Poppins',sans-serif; font-size:2rem; color:#fff; max-width:400px;">
     <div id="question-text" style="margin-bottom:32px; font-size:2.2rem; font-weight:700;">La persona sorteggiata ha risposto correttamente?</div>
@@ -72,6 +79,67 @@
 
 <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.8.1/dist/dotlottie-wc.js" type="module"></script>
 <script>
+// Funzione per calcolare le probabilità basate sui pallini vuoti
+function calculateProbabilities() {
+  let totalEmpty = 0;
+  const rowEmpties = [];
+  for (let r = 1; r <= 22; r++) {
+    const checkbox = document.querySelector(`.presence-checkbox[data-row="${r}"]`);
+    if (!checkbox || !checkbox.checked) {
+      rowEmpties[r-1] = 0;
+      continue;
+    }
+    const cerchi = document.querySelectorAll('.cerchio[data-row="' + r + '"]');
+    let emptyCount = 0;
+    for (let c of cerchi) {
+      const bg = (c.style.backgroundColor || '').trim();
+      if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') {
+        emptyCount++;
+      }
+    }
+    rowEmpties[r-1] = emptyCount;
+    totalEmpty += emptyCount;
+  }
+  for (let r = 1; r <= 22; r++) {
+    const prob = totalEmpty > 0 ? (rowEmpties[r-1] / totalEmpty) * 100 : 0;
+    // Aggiorna input-prob
+    const inputProb = document.querySelector(`.input-prob[data-row="${r}"]`);
+    if (inputProb) {
+      inputProb.value = prob.toFixed(1) + '%';
+    }
+  }
+  return rowEmpties.map(e => totalEmpty > 0 ? e / totalEmpty : 0); // pesi normalizzati, 0 se non presente
+}
+
+// Funzione per salvare la tabella
+function saveTabella() {
+  const data = [];
+  document.querySelectorAll('tbody tr').forEach(tr => {
+    const id = tr.dataset.id;
+    const checked = tr.querySelector('.presence-checkbox').checked;
+    const punti = parseInt(tr.querySelector('.input-punti').value) || 0;
+    const probabilita = parseFloat(tr.querySelector('.input-prob').value) || 0;
+    const stato = tr.querySelector('.stato-hidden').value;
+    data.push({id, checked, punti, probabilita, stato});
+  });
+  fetch('/save_tabella', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  }).then(res => res.json()).then(data => console.log('Saved')).catch(err => console.error('Save failed', err));
+}
+
+// Funzione per selezione casuale pesata
+function weightedRandom(weights) {
+  const total = weights.reduce((a,b)=>a+b,0);
+  let random = Math.random() * total;
+  for (let i = 0; i < weights.length; i++) {
+    random -= weights[i];
+    if (random <= 0) return i+1; // righe 1-22
+  }
+  return 22; // fallback
+}
+
 // Dado Lottie con cerchio numero
 const diceBtn = document.getElementById('diceBtn');
 const diceLottie = document.getElementById('main-dice-lottie');
@@ -87,6 +155,8 @@ window.addEventListener('DOMContentLoaded', () => {
       diceLottie.frame = 120;
     }, 2200); // durata animazione
   }
+  // Calcola probabilità iniziali
+  calculateProbabilities();
 });
 
 function showDiceNumber(num) {
@@ -120,13 +190,15 @@ function startDiceAnimation() {
 diceBtn.addEventListener('click', function() {
   this.classList.add('pressed');
   setTimeout(()=>this.classList.remove('pressed'), 160);
-  // Estrai il numero
-  const row = Math.floor(Math.random() * 22) + 1;
+  // Calcola probabilità e estrai il numero pesato
+  const weights = calculateProbabilities();
+  const row = weightedRandom(weights);
   // Ricomincia animazione Lottie ogni estrazione
   startDiceAnimation();
   // Mostra subito il numero
   showDiceNumber(row);
-  showQuestion(row);
+  // Apri prima l'overlay di difficoltà; al click su una difficoltà mostriamo la domanda
+  showDifficultyChooser(row);
 });
 
 // Overlay domanda
@@ -135,36 +207,113 @@ function showQuestion(row) {
   overlay.style.display = 'flex';
   overlay.dataset.row = row;
 }
+
+// Mostra la scelta di difficoltà prima della domanda
+function showDifficultyChooser(row) {
+  const overlay = document.getElementById('difficulty-overlay');
+  overlay.style.display = 'flex';
+  overlay.dataset.row = row;
+}
+
+// Nascondi chooser
+function hideDifficultyChooser() {
+  const overlay = document.getElementById('difficulty-overlay');
+  overlay.style.display = 'none';
+}
+
+// mappa colori: [difficoltà][esito]
+const COLOR_MAP = {
+  'facile': {
+    'correct': '#a7f3bf', // verde chiaro
+    'wrong': '#ffb6c1'    // rosa chiaro -> tendente a rosso
+  },
+  'normale': {
+    'correct': '#2e7d32', // verde scuro
+    'wrong': '#e53935'    // rosso normale
+  },
+  'difficile': {
+    'correct': '#0b3d0b', // verde molto scuro
+    'wrong': '#800020'    // bordò
+  }
+};
+
+// registra click sui bottoni difficoltà
+document.querySelectorAll('.diff-btn').forEach(function(b){
+  b.addEventListener('click', function(){
+    const diff = b.dataset.diff; // 'facile'|'normale'|'difficile'
+    const row = document.getElementById('difficulty-overlay').dataset.row;
+    // chiudi chooser e apri la domanda
+    hideDifficultyChooser();
+    // salviamo la difficoltà scelta nell'overlay domanda per usarla dopo
+    const questionOverlay = document.getElementById('question-overlay');
+    questionOverlay.dataset.row = row;
+    questionOverlay.dataset.diff = diff;
+    showQuestion(row);
+  });
+});
 document.getElementById('btn-correct').onclick = function() {
   const row = document.getElementById('question-overlay').dataset.row;
-  // Trova la prima pallina vuota e colorala di verde
-  const cerchi = document.querySelectorAll('.stato-' + row + '-1, .stato-' + row + '-2, .stato-' + row + '-3, .stato-' + row + '-4, .stato-' + row + '-5, .stato-' + row + '-6, .stato-' + row + '-7, .stato-' + row + '-8, .stato-' + row + '-9, .stato-' + row + '-10');
+  const diff = document.getElementById('question-overlay').dataset.diff || 'normale';
+  // Trova la prima pallina vuota e colorala secondo la mappa
+  const cerchi = document.querySelectorAll('.cerchio[data-row="' + row + '"]');
   for (let c of cerchi) {
-    if (c.style.backgroundColor === 'transparent' || c.style.backgroundColor === '') {
-      c.style.backgroundColor = '#4caf50';
+    const bg = (c.style.backgroundColor || '').trim();
+    if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') {
+      c.style.backgroundColor = COLOR_MAP[diff]['correct'];
       break;
     }
   }
+  // Aggiorna stato string
+  const statoHidden = document.querySelector(`tr[data-id="${row}"] .stato-hidden`);
+  let stato = statoHidden.value;
+  const index = stato.indexOf('-');
+  if (index !== -1) {
+    stato = stato.substring(0, index) + 'G' + stato.substring(index+1);
+    statoHidden.value = stato;
+  }
+  // Aggiungi punti
+  const inputPunti = document.querySelector(`.input-punti[data-row="${row}"]`);
+  let current = parseInt(inputPunti.value) || 0;
+  let add = diff === 'facile' ? 10 : diff === 'normale' ? 20 : 50;
+  inputPunti.value = current + add;
   document.getElementById('question-overlay').style.display = 'none';
+  // Ricalcola probabilità dopo la risposta
+  calculateProbabilities();
+  // Salva
+  saveTabella();
 };
 document.getElementById('btn-wrong').onclick = function() {
   const row = document.getElementById('question-overlay').dataset.row;
-  // Trova la prima pallina vuota e colorala di rosso
-  const cerchi = document.querySelectorAll('.stato-' + row + '-1, .stato-' + row + '-2, .stato-' + row + '-3, .stato-' + row + '-4, .stato-' + row + '-5, .stato-' + row + '-6, .stato-' + row + '-7, .stato-' + row + '-8, .stato-' + row + '-9, .stato-' + row + '-10');
+  const diff = document.getElementById('question-overlay').dataset.diff || 'normale';
+  // Trova la prima pallina vuota e colorala secondo la mappa
+  const cerchi = document.querySelectorAll('.cerchio[data-row="' + row + '"]');
   for (let c of cerchi) {
-    if (c.style.backgroundColor === 'transparent' || c.style.backgroundColor === '') {
-      c.style.backgroundColor = '#e74c3c';
+    const bg = (c.style.backgroundColor || '').trim();
+    if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') {
+      c.style.backgroundColor = COLOR_MAP[diff]['wrong'];
       break;
     }
   }
+  // Aggiorna stato string
+  const statoHidden = document.querySelector(`tr[data-id="${row}"] .stato-hidden`);
+  let stato = statoHidden.value;
+  const index = stato.indexOf('-');
+  if (index !== -1) {
+    stato = stato.substring(0, index) + 'R' + stato.substring(index+1);
+    statoHidden.value = stato;
+  }
   document.getElementById('question-overlay').style.display = 'none';
+  // Ricalcola probabilità dopo la risposta
+  calculateProbabilities();
+  // Salva
+  saveTabella();
 };
 
 // Colonna +
 document.querySelectorAll('.btn-plus').forEach(function(btn) {
   btn.addEventListener('click', function() {
     const row = btn.dataset.row;
-    showQuestion(row);
+    showDifficultyChooser(row);
   });
 });
 </script>
