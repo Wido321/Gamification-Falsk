@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, flash, jsonify
 from flask_login import login_required, current_user
 from . import db
+from .models import Tabella
 
 import json
 
@@ -14,9 +15,42 @@ def start():
 
 # Route per la tabella
 @views.route('/tabella')
+@login_required
 def tabella():
     from flask_login import current_user
-    return render_template('tabella.html', user=current_user)
+    # Remove all existing data and recreate fresh
+    Tabella.query.delete()
+    db.session.commit()
+    cognomi = [
+        'BANDINI', 'BARACTARI', 'BARDARO', 'BASILI', 'BATTAGLIA', 'BERGHENTI', 'BOI', 'BONORETTI',
+        'CONTRERAS', 'FILIPPINI', 'FOGLIA', 'GIANINI', 'HUERTA', 'IOSUE', 'JABARI', 'LENA',
+        'PASCARELLA', 'PIGHI', 'PINOTTI', 'SOLI', 'VETRO', 'ZIVERI'
+    ]
+    for i, cog in enumerate(cognomi, 1):
+        new_row = Tabella(
+            cognome=cog,
+            checked=True,
+            punti=0,
+            probabilita=100 - i*2
+        )
+        db.session.add(new_row)
+    db.session.commit()
+    tabella_data = Tabella.query.all()
+    return render_template('tabella.html', tabella_data=tabella_data, user=current_user)
+
+@views.route('/save_tabella', methods=['POST'])
+@login_required
+def save_tabella():
+    data = request.get_json()
+    for row in data:
+        tab = Tabella.query.get(row['id'])
+        if tab:
+            tab.checked = row['checked']
+            tab.punti = int(row['punti'])
+            tab.probabilita = float(row['probabilita'])
+            tab.stato = row['stato']
+    db.session.commit()
+    return jsonify({'success': True})
 
 # Rename previous /start to /home
 @views.route('/home', methods=['GET', 'POST'])
