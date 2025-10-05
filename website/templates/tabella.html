@@ -24,7 +24,8 @@
         <td>
           <div class="stato-cerchi">
             {% for j in range(10) %}
-              <span class="cerchio stato-{{ row.id }}-{{ j+1 }}" data-row="{{ row.id }}" data-index="{{ j+1 }}" style="background-color: {% if row.stato[j] == 'G' %}#a7f3bf{% elif row.stato[j] == 'R' %}#ffb6c1{% else %}transparent{% endif %}"></span>
+              {% set code = row.stato[j*2:(j+1)*2] %}
+              <span class="cerchio stato-{{ row.id }}-{{ j+1 }}" data-row="{{ row.id }}" data-index="{{ j+1 }}" style="background-color: {% if code == 'Gf' %}#a7f3bf{% elif code == 'Rf' %}#ffb6c1{% elif code == 'Gn' %}#2e7d32{% elif code == 'Rn' %}#e53935{% elif code == 'Gd' %}#0b3d0b{% elif code == 'Rd' %}#800020{% else %}transparent{% endif %}"></span>
             {% endfor %}
           </div>
         </td>
@@ -35,12 +36,18 @@
       {% endfor %}
     </tbody>
   </table>
+
+  <!-- Reset Button -->
+  <div style="margin-top: auto; text-align: left; margin-bottom: 20px; margin-left: 20px;">
+    <button id="resetBtn" style="background: linear-gradient(135deg,#f44336,#d32f2f); color: #fff; border: none; border-radius: 8px; padding: 10px 16px; font-size: 0.9rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(244,67,54,0.3); transition: transform 0.15s;">Reset Dati</button>
+  </div>
 </div>
 
 <!-- Dice Button PNG -->
 <div style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
   <div style="position: relative; width: 300px; height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;">
-    <div id="dice-main-number" style="position: absolute; top: 0; left: 50%; transform: translate(-50%, 0); z-index: 2; width: 300px; height: 300px; background: linear-gradient(135deg,#4158d0,#c850c0); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 5rem; font-family: 'Poppins', sans-serif; font-weight: 800; color: #fff; box-shadow: 0 8px 32px rgba(65,88,208,0.22); border: 6px solid #fff; pointer-events: none; opacity: 0; transition: opacity 0.3s;"></div>
+    <div id="selected-name" style="position: absolute; top: -120px; left: 50%; transform: translate(-50%, 0); z-index: 4000; font-size: 3rem; font-family: 'Poppins', sans-serif; font-weight: 800; color: #fff; text-shadow: 0 4px 32px #4158d0, 0 0 64px #c850c0; pointer-events: none; opacity: 0; transition: opacity 0.3s;"></div>
+    <div id="dice-main-number" style="position: absolute; top: 0; left: 50%; transform: translate(-50%, 0); z-index: 3999; width: 300px; height: 300px; background: linear-gradient(135deg,#4158d0,#c850c0); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 5rem; font-family: 'Poppins', sans-serif; font-weight: 800; color: #fff; box-shadow: 0 8px 32px rgba(65,88,208,0.22); border: 6px solid #fff; pointer-events: none; opacity: 0; transition: opacity 0.3s;"></div>
     <button id="diceBtn" class="dice-button-img" aria-label="Lancia il dado" style="background:none; border:none; padding:0; border-radius:50%; box-shadow:0 8px 32px rgba(65,88,208,0.22); cursor:pointer; width:300px; height:300px; display:flex; align-items:center; justify-content:center; overflow:hidden; position: relative;">
   <dotlottie-wc id="main-dice-lottie" src="https://lottie.host/be5df32d-5f20-4015-a1e4-b0b56c8934f8/PfUeITOeEI.lottie" style="width: 300px; height: 300px" autoplay loop></dotlottie-wc>
     </button>
@@ -50,8 +57,9 @@
 <!-- Overlay domanda -->
 <!-- Overlay difficoltà -->
 <div id="difficulty-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(26,11,46,0.85); z-index:3500; justify-content:center; align-items:center;">
-  <div style="background:rgba(255,255,255,0.08); border-radius:24px; box-shadow:0 8px 32px rgba(107,43,255,0.2); padding:36px 28px; text-align:center; font-family:'Poppins',sans-serif; font-size:1.9rem; color:#fff; max-width:520px;">
-    <div id="difficulty-text" style="margin-bottom:24px; font-size:2rem; font-weight:700;">Che difficoltà deve essere la domanda?</div>
+  <div style="background:rgba(255,255,255,0.08); border-radius:24px; box-shadow:0 8px 32px rgba(107,43,255,0.2); padding:36px 28px; text-align:center; font-family:'Poppins',sans-serif; font-size:1.9rem; color:#fff; max-width:520px; position:relative;">
+    <button id="cancel-difficulty" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.2); color: #fff; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 1.2rem; font-weight: bold; cursor: pointer;">×</button>
+    <div id="difficulty-text" style="margin-bottom:24px; font-size:2rem; font-weight:700;">Che difficoltà deve essere la domanda per <span id="overlay-selected-name"></span>?</div>
     <div style="display:flex; justify-content:center; gap:12px;">
       <button class="diff-btn" data-diff="facile" style="background:linear-gradient(135deg,#4caf50,#2e7d32); color:#fff; font-size:1.1rem; font-weight:700; border:none; border-radius:12px; padding:12px 20px; cursor:pointer;">Facile</button>
       <button class="diff-btn" data-diff="normale" style="background:linear-gradient(135deg,#ffeb3b,#fbc02d); color:#000; font-size:1.1rem; font-weight:700; border:none; border-radius:12px; padding:12px 20px; cursor:pointer;">Normale</button>
@@ -62,8 +70,9 @@
 
 <!-- Overlay domanda (dopo scelta difficoltà) -->
 <div id="question-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(26,11,46,0.85); z-index:3000; justify-content:center; align-items:center;">
-  <div style="background:rgba(255,255,255,0.08); border-radius:24px; box-shadow:0 8px 32px rgba(107,43,255,0.2); padding:48px 32px; text-align:center; font-family:'Poppins',sans-serif; font-size:2rem; color:#fff; max-width:400px;">
-    <div id="question-text" style="margin-bottom:32px; font-size:2.2rem; font-weight:700;">La persona sorteggiata ha risposto correttamente?</div>
+  <div style="background:rgba(255,255,255,0.08); border-radius:24px; box-shadow:0 8px 32px rgba(107,43,255,0.2); padding:48px 32px; text-align:center; font-family:'Poppins',sans-serif; font-size:2rem; color:#fff; max-width:400px; position:relative;">
+    <button id="cancel-question" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.2); color: #fff; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 1.2rem; font-weight: bold; cursor: pointer;">×</button>
+    <div id="question-text" style="margin-bottom:32px; font-size:2.2rem; font-weight:700;"><span id="overlay-selected-name"></span> ha risposto correttamente?</div>
     <button id="btn-correct" style="background:linear-gradient(135deg,#4caf50,#43ea7f); color:#fff; font-size:1.3rem; font-weight:600; border:none; border-radius:12px; padding:16px 32px; margin:0 16px; cursor:pointer;">Sì</button>
     <button id="btn-wrong" style="background:linear-gradient(135deg,#e74c3c,#ff6b6b); color:#fff; font-size:1.3rem; font-weight:600; border:none; border-radius:12px; padding:16px 32px; margin:0 16px; cursor:pointer;">No</button>
   </div>
@@ -79,6 +88,7 @@
 
 <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.8.1/dist/dotlottie-wc.js" type="module"></script>
 <script>
+const names = {{ names|tojson }};
 // Funzione per calcolare le probabilità basate sui pallini vuoti
 function calculateProbabilities() {
   let totalEmpty = 0;
@@ -162,10 +172,19 @@ window.addEventListener('DOMContentLoaded', () => {
 function showDiceNumber(num) {
   diceMainNumber.textContent = num;
   diceMainNumber.style.opacity = '1';
+  diceMainNumber.classList.add('illuminated');
+  const selectedNameDiv = document.getElementById('selected-name');
+  const name = getNameByRow(num);
+  const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  selectedNameDiv.textContent = capitalizedName;
+  selectedNameDiv.style.opacity = '1';
 }
 
 function hideDiceNumber() {
   diceMainNumber.style.opacity = '0';
+  diceMainNumber.classList.remove('illuminated');
+  const selectedNameDiv = document.getElementById('selected-name');
+  selectedNameDiv.style.opacity = '0';
 }
 
 function startDiceAnimation() {
@@ -206,6 +225,9 @@ function showQuestion(row) {
   const overlay = document.getElementById('question-overlay');
   overlay.style.display = 'flex';
   overlay.dataset.row = row;
+  const name = getNameByRow(row);
+  const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  document.getElementById('overlay-selected-name').textContent = capitalizedName;
 }
 
 // Mostra la scelta di difficoltà prima della domanda
@@ -213,6 +235,9 @@ function showDifficultyChooser(row) {
   const overlay = document.getElementById('difficulty-overlay');
   overlay.style.display = 'flex';
   overlay.dataset.row = row;
+  const name = getNameByRow(row);
+  const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  document.getElementById('overlay-selected-name').textContent = capitalizedName;
 }
 
 // Nascondi chooser
@@ -236,6 +261,11 @@ const COLOR_MAP = {
     'wrong': '#800020'    // bordò
   }
 };
+
+// Funzione per ottenere il nome dalla riga
+function getNameByRow(row) {
+  return names[row-1] || 'Persona ' + row;
+}
 
 // registra click sui bottoni difficoltà
 document.querySelectorAll('.diff-btn').forEach(function(b){
@@ -266,9 +296,9 @@ document.getElementById('btn-correct').onclick = function() {
   // Aggiorna stato string
   const statoHidden = document.querySelector(`tr[data-id="${row}"] .stato-hidden`);
   let stato = statoHidden.value;
-  const index = stato.indexOf('-');
+  const index = stato.indexOf('--');
   if (index !== -1) {
-    stato = stato.substring(0, index) + 'G' + stato.substring(index+1);
+    stato = stato.substring(0, index) + 'G' + diff.charAt(0) + stato.substring(index+2);
     statoHidden.value = stato;
   }
   // Aggiungi punti
@@ -281,6 +311,9 @@ document.getElementById('btn-correct').onclick = function() {
   calculateProbabilities();
   // Salva
   saveTabella();
+  // Dopo il sorteggio, nascondi il numero e mostra l'animazione
+  hideDiceNumber();
+  startDiceAnimation();
 };
 document.getElementById('btn-wrong').onclick = function() {
   const row = document.getElementById('question-overlay').dataset.row;
@@ -297,9 +330,9 @@ document.getElementById('btn-wrong').onclick = function() {
   // Aggiorna stato string
   const statoHidden = document.querySelector(`tr[data-id="${row}"] .stato-hidden`);
   let stato = statoHidden.value;
-  const index = stato.indexOf('-');
+  const index = stato.indexOf('--');
   if (index !== -1) {
-    stato = stato.substring(0, index) + 'R' + stato.substring(index+1);
+    stato = stato.substring(0, index) + 'R' + diff.charAt(0) + stato.substring(index+2);
     statoHidden.value = stato;
   }
   document.getElementById('question-overlay').style.display = 'none';
@@ -307,6 +340,9 @@ document.getElementById('btn-wrong').onclick = function() {
   calculateProbabilities();
   // Salva
   saveTabella();
+  // Dopo il sorteggio, nascondi il numero e mostra l'animazione
+  hideDiceNumber();
+  startDiceAnimation();
 };
 
 // Colonna +
@@ -315,6 +351,33 @@ document.querySelectorAll('.btn-plus').forEach(function(btn) {
     const row = btn.dataset.row;
     showDifficultyChooser(row);
   });
+});
+
+// Cancel draw function
+function cancelDraw() {
+  hideDifficultyChooser();
+  document.getElementById('question-overlay').style.display = 'none';
+  document.getElementById('overlay-selected-name').textContent = '';
+  hideDiceNumber();
+  // Reset dice to initial state
+  diceLottie.frame = 120;
+}
+
+// Event listeners for cancel buttons
+document.getElementById('cancel-difficulty').addEventListener('click', cancelDraw);
+document.getElementById('cancel-question').addEventListener('click', cancelDraw);
+
+// Reset button event listener
+document.getElementById('resetBtn').addEventListener('click', function() {
+  if (confirm('Sei sicuro di voler azzerare tutti i dati?')) {
+    fetch('/reset_data', {
+      method: 'POST'
+    }).then(res => res.json()).then(data => {
+      if (data.success) {
+        window.location.reload();
+      }
+    }).catch(err => console.error('Reset failed', err));
+  }
 });
 </script>
 
@@ -352,7 +415,7 @@ body {
 }
 .tabella-container {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
   min-height: 70vh;
   width: 100%;
@@ -518,5 +581,9 @@ body {
 .dice-button-img:focus {
   outline: 3px solid rgba(21,156,228,0.18);
   outline-offset: 3px;
+}
+
+#dice-main-number.illuminated {
+  box-shadow: 0 8px 32px rgba(65,88,208,0.5), 0 0 64px rgba(200,80,192,0.5);
 }
 </style>
