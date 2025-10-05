@@ -18,25 +18,25 @@ def start():
 @login_required
 def tabella():
     from flask_login import current_user
-    # Remove all existing data and recreate fresh
-    Tabella.query.delete()
-    db.session.commit()
-    cognomi = [
-        'BANDINI', 'BARACTARI', 'BARDARO', 'BASILI', 'BATTAGLIA', 'BERGHENTI', 'BOI', 'BONORETTI',
-        'CONTRERAS', 'FILIPPINI', 'FOGLIA', 'GIANINI', 'HUERTA', 'IOSUE', 'JABARI', 'LENA',
-        'PASCARELLA', 'PIGHI', 'PINOTTI', 'SOLI', 'VETRO', 'ZIVERI'
-    ]
-    for i, cog in enumerate(cognomi, 1):
-        new_row = Tabella(
-            cognome=cog,
-            checked=True,
-            punti=0,
-            probabilita=100 - i*2
-        )
-        db.session.add(new_row)
-    db.session.commit()
+    # Initialize data only if table is empty
+    if not Tabella.query.first():
+        cognomi = [
+            'BANDINI', 'BARACTARI', 'BARDARO', 'BASILI', 'BATTAGLIA', 'BERGHENTI', 'BOI', 'BONORETTI',
+            'CONTRERAS', 'FILIPPINI', 'FOGLIA', 'GIANINI', 'HUERTA', 'IOSUE', 'JABARI', 'LENA',
+            'PASCARELLA', 'PIGHI', 'PINOTTI', 'SOLI', 'VETRO', 'ZIVERI'
+        ]
+        for i, cog in enumerate(cognomi, 1):
+            new_row = Tabella(
+                cognome=cog,
+                checked=True,
+                punti=0,
+                probabilita=100 - i*2
+            )
+            db.session.add(new_row)
+        db.session.commit()
     tabella_data = Tabella.query.all()
-    return render_template('tabella.html', tabella_data=tabella_data, user=current_user)
+    names = [row.cognome for row in tabella_data]
+    return render_template('tabella.html', tabella_data=tabella_data, names=names, user=current_user)
 
 @views.route('/save_tabella', methods=['POST'])
 @login_required
@@ -49,6 +49,29 @@ def save_tabella():
             tab.punti = int(row['punti'])
             tab.probabilita = float(row['probabilita'])
             tab.stato = row['stato']
+    db.session.commit()
+    return jsonify({'success': True})
+
+@views.route('/reset_data', methods=['POST'])
+@login_required
+def reset_data():
+    # Reset all Tabella rows to default values
+    cognomi = [
+        'BANDINI', 'BARACTARI', 'BARDARO', 'BASILI', 'BATTAGLIA', 'BERGHENTI', 'BOI', 'BONORETTI',
+        'CONTRERAS', 'FILIPPINI', 'FOGLIA', 'GIANINI', 'HUERTA', 'IOSUE', 'JABARI', 'LENA',
+        'PASCARELLA', 'PIGHI', 'PINOTTI', 'SOLI', 'VETRO', 'ZIVERI'
+    ]
+    # Delete all existing rows
+    Tabella.query.delete()
+    # Reinitialize with default data
+    for i, cog in enumerate(cognomi, 1):
+        new_row = Tabella(
+            cognome=cog,
+            checked=True,
+            punti=0,
+            probabilita=100 - i*2
+        )
+        db.session.add(new_row)
     db.session.commit()
     return jsonify({'success': True})
 
