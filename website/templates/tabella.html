@@ -5,13 +5,14 @@
   <table class="tabella-moderna">
     <thead>
       <tr>
-        <th>#</th>
-        <th>Presenza</th>
-        <th>Nome</th>
-        <th>Stato</th>
-        <th>Punti</th>
-        <th>Probabilità</th>
-  <th></th>
+        <th style="width: 12.5%;">#</th>
+        <th style="width: 12.5%;">Presenza</th>
+        <th style="width: 12.5%;">Nome</th>
+        <th style="width: 12.5%;">Stato</th>
+        <th style="width: 12.5%;">Punti Aura</th>
+        <th style="width: 12.5%;">Voti</th>
+        <th style="width: 12.5%;">Probabilità</th>
+        <th style="width: 10%;"></th>
       </tr>
     </thead>
     <tbody>
@@ -23,14 +24,17 @@
         <td>{{ row.cognome }}</td>
         <td>
           <div class="stato-cerchi">
-            {% for j in range(10) %}
+            {# Calcola il numero di slot memorizzati (2 char per slot) #}
+            {% set slots = (row.stato | length) // 2 %}
+            {% for j in range(slots) %}
               {% set code = row.stato[j*2:(j+1)*2] %}
-              <span class="cerchio stato-{{ row.id }}-{{ j+1 }}" data-row="{{ row.id }}" data-index="{{ j+1 }}" style="background-color: {% if code == 'Gf' %}#a7f3bf{% elif code == 'Rf' %}#ffb6c1{% elif code == 'Gn' %}#2e7d32{% elif code == 'Rn' %}#e53935{% elif code == 'Gd' %}#0b3d0b{% elif code == 'Rd' %}#800020{% else %}transparent{% endif %}"></span>
+              <span class="cerchio stato-{{ row.id }}-{{ j+1 }}" data-row="{{ row.id }}" data-index="{{ j+1 }}" data-diff="{% if code != '--' %}{% if code[1] == 'f' %}Facile{% elif code[1] == 'n' %}Normale{% elif code[1] == 'd' %}Difficile{% endif %}{% endif %}" title="{% if code != '--' %}{% if code[1] == 'f' %}Facile{% elif code[1] == 'n' %}Normale{% elif code[1] == 'd' %}Difficile{% endif %}{% endif %}" style="background-color: {% if code == 'Gf' %}#5eff4b{% elif code == 'Rf' %}#ff4848{% elif code == 'Gn' %}#4caf50{% elif code == 'Rn' %}#d8302d{% elif code == 'Gd' %}#147f00{% elif code == 'Rd' %}#7f0000{% else %}transparent{% endif %}"></span>
             {% endfor %}
           </div>
         </td>
-        <td><input type="text" value="{{ row.punti }}" class="input-punti" readonly data-row="{{ row.id }}"></td>
-        <td><input type="text" value="{{ row.probabilita }}%" class="input-prob" readonly data-row="{{ row.id }}"></td>
+  <td><input type="text" value="{{ row.punti }}" class="input-punti" readonly data-row="{{ row.id }}"></td>
+  <td><span class="voto-display" data-row="{{ row.id }}">0</span></td>
+  <td><input type="text" value="{{ row.probabilita }}%" class="input-prob" readonly data-row="{{ row.id }}"></td>
         <td><button class="btn-plus" data-row="{{ row.id }}" aria-label="Aumenta" title="Aumenta" style="font-size:2.2rem; font-weight:700; color:#fff; background:linear-gradient(135deg,#4158d0,#c850c0); border:none; border-radius:50%; width:48px; height:48px; box-shadow:0 4px 16px rgba(65,88,208,0.18); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform 0.15s;">+</button></td>
       </tr>
       {% endfor %}
@@ -86,39 +90,124 @@
   </div>
 </div>
 
+<!-- Confirmation Overlay -->
+<div id="confirmation-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(26,11,46,0.85); z-index:4500; justify-content:center; align-items:center;">
+  <div style="background:rgba(255,255,255,0.08); border-radius:24px; box-shadow:0 8px 32px rgba(107,43,255,0.2); padding:36px 28px; text-align:center; font-family:'Poppins',sans-serif; font-size:1.9rem; color:#fff; max-width:520px; position:relative;">
+    <button id="cancel-confirmation" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.2); color: #fff; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 1.2rem; font-weight: bold; cursor: pointer;">×</button>
+    <div style="font-size: 4rem; margin-bottom: 20px;">☢️</div>
+    <div id="confirmation-text" style="margin-bottom:24px; font-size:2rem; font-weight:700;">Attenzione</div>
+    <div id="confirmation-message" style="margin-bottom:24px; font-size:1.5rem;"></div>
+    <div style="display:flex; justify-content:center; gap:12px;">
+      <button id="confirm-action" style="background:linear-gradient(135deg,#f44336,#d32f2f); color:#fff; font-size:1.1rem; font-weight:700; border:none; border-radius:12px; padding:12px 20px; cursor:pointer;">Conferma</button>
+      <button id="cancel-action" style="background:linear-gradient(135deg,#4caf50,#2e7d32); color:#fff; font-size:1.1rem; font-weight:700; border:none; border-radius:12px; padding:12px 20px; cursor:pointer;">Annulla</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.8.1/dist/dotlottie-wc.js" type="module"></script>
 <script>
 const names = {{ names|tojson }};
 // Funzione per calcolare le probabilità basate sui pallini vuoti
 function calculateProbabilities() {
+  // Calcola probabilità basandosi sullo stato memorizzato (.stato-hidden)
+  // e aggiorna la colonna Voti secondo la formula richiesta.
   let totalEmpty = 0;
   const rowEmpties = [];
-  for (let r = 1; r <= 22; r++) {
-    const checkbox = document.querySelector(`.presence-checkbox[data-row="${r}"]`);
+  const weights = []; // pesi normalizzati restituiti
+
+  // Numero di slot visibili (renderizzati)
+  const slotsVisible = visibleRows * VISIBLE_COLS;
+
+
+  // Itera su ogni riga della tabella (usando selettori relativi al tr)
+  document.querySelectorAll('tbody tr').forEach((tr, idx) => {
+    const checkbox = tr.querySelector('.presence-checkbox');
     if (!checkbox || !checkbox.checked) {
-      rowEmpties[r-1] = 0;
-      continue;
+      rowEmpties[idx] = 0;
+      // Aggiorna input-prob e input-voti a 0
+      const inputProb = tr.querySelector('.input-prob');
+      if (inputProb) inputProb.value = '0.0%';
+      const inputVoti = tr.querySelector('.voto-display');
+      if (inputVoti) inputVoti.textContent = '0';
+      weights[idx] = 0;
+      return;
     }
-    const cerchi = document.querySelectorAll('.cerchio[data-row="' + r + '"]');
+
+    const statoHidden = tr.querySelector('.stato-hidden');
+    const stato = (statoHidden ? statoHidden.value : '') || '';
+
+    // Conta palline vuote tra gli slot visibili
     let emptyCount = 0;
-    for (let c of cerchi) {
-      const bg = (c.style.backgroundColor || '').trim();
-      if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') {
+    // Per il calcolo dei voti
+    let x = 0; // somma pesi risposte corrette
+    let y = 0; // somma pesi di tutte le domande risposte (corrette + sbagliate)
+
+    for (let i = 0; i < slotsVisible; i++) {
+      const code = stato.length >= (i+1)*2 ? stato.substr(i*2,2) : '--';
+      if (code === '--') {
         emptyCount++;
+        continue;
+      }
+      // code è tipo 'Gf' o 'Rn'
+      const outcome = code.charAt(0); // 'G' o 'R'
+      const diffChar = code.charAt(1); // 'f'|'n'|'d'
+      let w = diffChar === 'd' ? 3 : diffChar === 'n' ? 2 : 1;
+      // y conta tutte le domande risposte (sia G che R)
+      if (outcome === 'G' || outcome === 'R') {
+        y += w;
+      }
+      // x conta solo le corrette (G)
+      if (outcome === 'G') {
+        x += w;
       }
     }
-    rowEmpties[r-1] = emptyCount;
+
+    rowEmpties[idx] = emptyCount;
     totalEmpty += emptyCount;
-  }
-  for (let r = 1; r <= 22; r++) {
-    const prob = totalEmpty > 0 ? (rowEmpties[r-1] / totalEmpty) * 100 : 0;
-    // Aggiorna input-prob
-    const inputProb = document.querySelector(`.input-prob[data-row="${r}"]`);
-    if (inputProb) {
-      inputProb.value = prob.toFixed(1) + '%';
+
+    // Calcola e aggiorna campo Voti
+    const inputVoti = tr.querySelector('.voto-display');
+    if (inputVoti) {
+      if (x === 0 && y === 0) {
+        inputVoti.textContent = '0';
+      } else {
+        const val = (x / y) * 8 + 1;
+        inputVoti.textContent = roundToHalf(val).toFixed(1);
+      }
+      // Aggiungi classe per ombra basata sul valore
+      const val = parseFloat(inputVoti.textContent);
+      inputVoti.classList.remove('voto-low', 'voto-high', 'voto-gold');
+      if (val < 6) {
+        inputVoti.classList.add('voto-low');
+      } else if (val >= 9) {
+        inputVoti.classList.add('voto-gold');
+      } else {
+        inputVoti.classList.add('voto-high');
+      }
     }
+
+    // Calcola probabilità placeholder (riempiamo dopo il loop usando empty counts)
+    weights[idx] = null; // placeholder
+  });
+
+  // Aggiorna le probabilità in percentuale usando rowEmpties
+  for (let i = 0; i < rowEmpties.length; i++) {
+    const prob = totalEmpty > 0 ? (rowEmpties[i] / totalEmpty) * 100 : 0;
+    // aggiorna il corrispondente input-prob nella riga i-esima (nell'ordine del DOM)
+    const tr = document.querySelectorAll('tbody tr')[i];
+    if (tr) {
+      const inputProb = tr.querySelector('.input-prob');
+      if (inputProb) inputProb.value = prob.toFixed(1) + '%';
+    }
+    weights[i] = totalEmpty > 0 ? rowEmpties[i] / totalEmpty : 0;
   }
-  return rowEmpties.map(e => totalEmpty > 0 ? e / totalEmpty : 0); // pesi normalizzati, 0 se non presente
+
+  return weights;
+}
+
+// Arrotonda al mezzo più vicino (0.5)
+function roundToHalf(n) {
+  return Math.round(n * 2) / 2;
 }
 
 // Funzione per salvare la tabella
@@ -165,9 +254,120 @@ window.addEventListener('DOMContentLoaded', () => {
       diceLottie.frame = 120;
     }, 2200); // durata animazione
   }
+  // Calcola visibleRows in base allo stato salvato (preserve righe aggiunte)
+  computeVisibleRowsFromState();
   // Calcola probabilità iniziali
   calculateProbabilities();
+  // render stato iniziale
+  renderStatoForAll();
 });
+
+// Calcola quante righe visibili mostrare basandosi sullo stato più lungo tra le righe
+function computeVisibleRowsFromState() {
+  let maxSlots = 0;
+  document.querySelectorAll('tbody tr').forEach(tr => {
+    const statoHidden = tr.querySelector('.stato-hidden');
+    if (!statoHidden) return;
+    const slots = Math.floor((statoHidden.value || '').length / 2);
+    if (slots > maxSlots) maxSlots = slots;
+  });
+  // Imposta visibleRows in base al numero di slot (diviso 5, arrotondato per eccesso)
+  if (maxSlots > 0) visibleRows = Math.ceil(maxSlots / VISIBLE_COLS);
+}
+
+// ---- Nuove funzioni per rendering dinamico e estensione delle righe ----
+const VISIBLE_COLS = 5; // 5 palline per riga visibile
+let visibleRows = 1; // quante righe visibili mostriamo (incrementa quando una riga viene completata)
+
+// mappa colori unificata (usata sia per rendering che per aggiornamenti inline)
+const COLOR_MAP = {
+  'facile': { 'correct': '#5eff4b', 'wrong': '#ff4848' },
+  'normale': { 'correct': '#4caf50', 'wrong': '#d8302d' },
+  'difficile': { 'correct': '#147f00', 'wrong': '#7f0000' }
+};
+
+function getColorForCode(code) {
+  if (!code || code === '--') return 'transparent';
+  const outcome = code.charAt(0); // 'G' or 'R'
+  const diffChar = code.charAt(1); // 'f'|'n'|'d'
+  const diffKey = diffChar === 'd' ? 'difficile' : diffChar === 'n' ? 'normale' : 'facile';
+  return outcome === 'G' ? COLOR_MAP[diffKey]['correct'] : COLOR_MAP[diffKey]['wrong'];
+}
+
+function renderStatoForAll() {
+  // Per ogni riga nella tabella rigeneriamo i pallini in base al valore presente in .stato-hidden
+  document.querySelectorAll('tbody tr').forEach(tr => {
+    const rowId = tr.dataset.id;
+    const statoHidden = tr.querySelector('.stato-hidden');
+    const container = tr.querySelector('.stato-cerchi');
+    const stato = (statoHidden ? statoHidden.value : '') || '';
+    const totalVisibleSlots = visibleRows * VISIBLE_COLS;
+    let html = '';
+    for (let i = 0; i < totalVisibleSlots; i++) {
+      const code = stato.length >= (i+1)*2 ? stato.substr(i*2,2) : '--';
+      const color = getColorForCode(code);
+      const idx = i+1;
+      const diffChar = code.charAt(1);
+      let diffText = '';
+      if (code !== '--') {
+        if (diffChar === 'f') diffText = 'Facile';
+        else if (diffChar === 'n') diffText = 'Normale';
+        else if (diffChar === 'd') diffText = 'Difficile';
+      }
+      html += `<span class="cerchio stato-${rowId}-${idx}" data-row="${rowId}" data-index="${idx}" data-diff="${diffText}" title="${diffText}" style="background-color: ${color}"></span>`;
+    }
+    if (container) container.innerHTML = html;
+  });
+}
+
+function ensureStoredSlotsForVisible() {
+  // Garantisce che lo stato memorizzato abbia almeno visibleRows*VISIBLE_COLS slot per ogni riga
+  const neededSlots = visibleRows * VISIBLE_COLS;
+  let changed = false;
+  document.querySelectorAll('tbody tr').forEach(tr => {
+    const statoHidden = tr.querySelector('.stato-hidden');
+    if (!statoHidden) return;
+    const currSlots = Math.floor((statoHidden.value || '').length / 2);
+    if (currSlots < neededSlots) {
+      const toAdd = neededSlots - currSlots;
+      statoHidden.value = statoHidden.value + '--'.repeat(toAdd);
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+function checkAndExtendIfNeeded() {
+  // Se almeno una riga ha completato tutti i pallini visibili, estende di una riga (5 slot) per tutti
+  const totalVisibleSlots = visibleRows * VISIBLE_COLS;
+  let anyCompleted = false;
+  document.querySelectorAll('tbody tr').forEach(tr => {
+    const statoHidden = tr.querySelector('.stato-hidden');
+    const stato = (statoHidden ? statoHidden.value : '') || '';
+    let completed = true;
+    for (let i = 0; i < totalVisibleSlots; i++) {
+      const code = stato.length >= (i+1)*2 ? stato.substr(i*2,2) : '--';
+      if (code === '--') { completed = false; break; }
+    }
+    if (completed) anyCompleted = true;
+  });
+  if (anyCompleted) {
+    // Aggiungi 5 slot a tutti
+    visibleRows += 1;
+    document.querySelectorAll('tbody tr').forEach(tr => {
+      const statoHidden = tr.querySelector('.stato-hidden');
+      if (statoHidden) statoHidden.value = (statoHidden.value || '') + '--'.repeat(VISIBLE_COLS);
+    });
+    // Rigeneriamo e salviamo
+    renderStatoForAll();
+    saveTabella();
+  }
+}
+
+// Assicuriamoci che lo stato salvato contenga almeno la prima riga (5 slot)
+ensureStoredSlotsForVisible();
+renderStatoForAll();
+
 
 function showDiceNumber(num) {
   diceMainNumber.textContent = num;
@@ -246,21 +446,7 @@ function hideDifficultyChooser() {
   overlay.style.display = 'none';
 }
 
-// mappa colori: [difficoltà][esito]
-const COLOR_MAP = {
-  'facile': {
-    'correct': '#a7f3bf', // verde chiaro
-    'wrong': '#ffb6c1'    // rosa chiaro -> tendente a rosso
-  },
-  'normale': {
-    'correct': '#2e7d32', // verde scuro
-    'wrong': '#e53935'    // rosso normale
-  },
-  'difficile': {
-    'correct': '#0b3d0b', // verde molto scuro
-    'wrong': '#800020'    // bordò
-  }
-};
+// (mappa colori rimossa qui: si usa la mappa unificata già dichiarata sopra)
 
 // Funzione per ottenere il nome dalla riga
 function getNameByRow(row) {
@@ -307,10 +493,20 @@ document.getElementById('btn-correct').onclick = function() {
   let add = diff === 'facile' ? 10 : diff === 'normale' ? 20 : 50;
   inputPunti.value = current + add;
   document.getElementById('question-overlay').style.display = 'none';
-  // Ricalcola probabilità dopo la risposta
+  // Aggiorna UI e dati dopo la risposta
+  ensureStoredSlotsForVisible();
+  renderStatoForAll();
+  // Ricalcola probabilità e voti dopo la risposta
   calculateProbabilities();
   // Salva
   saveTabella();
+  // Controlla se estendere la riga visibile per tutti (potrebbe aggiungere slot e salvare di nuovo)
+  checkAndExtendIfNeeded();
+  fetch('/save_storico', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({cognome: names[row - 1], difficolta: diff, risultato: 'correct'})
+  });
   // Dopo il sorteggio, nascondi il numero e mostra l'animazione
   hideDiceNumber();
   startDiceAnimation();
@@ -335,11 +531,26 @@ document.getElementById('btn-wrong').onclick = function() {
     stato = stato.substring(0, index) + 'R' + diff.charAt(0) + stato.substring(index+2);
     statoHidden.value = stato;
   }
+  // Sottrai punti
+  const inputPunti = document.querySelector(`.input-punti[data-row="${row}"]`);
+  let current = parseInt(inputPunti.value) || 0;
+  let subtract = diff === 'facile' ? 10 : diff === 'normale' ? 20 : 50;
+  inputPunti.value = current - subtract;
   document.getElementById('question-overlay').style.display = 'none';
-  // Ricalcola probabilità dopo la risposta
+  // Aggiorna UI e dati dopo la risposta
+  ensureStoredSlotsForVisible();
+  renderStatoForAll();
+  // Ricalcola probabilità e voti dopo la risposta
   calculateProbabilities();
   // Salva
   saveTabella();
+  // Controlla se estendere la riga visibile per tutti (potrebbe aggiungere slot e salvare di nuovo)
+  checkAndExtendIfNeeded();
+  fetch('/save_storico', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({cognome: names[row - 1], difficolta: diff, risultato: 'wrong'})
+  });
   // Dopo il sorteggio, nascondi il numero e mostra l'animazione
   hideDiceNumber();
   startDiceAnimation();
@@ -367,9 +578,27 @@ function cancelDraw() {
 document.getElementById('cancel-difficulty').addEventListener('click', cancelDraw);
 document.getElementById('cancel-question').addEventListener('click', cancelDraw);
 
+// Confirmation overlay functions
+let confirmCallback = null;
+function showConfirmation(message, callback) {
+  document.getElementById('confirmation-message').textContent = message;
+  confirmCallback = callback;
+  document.getElementById('confirmation-overlay').style.display = 'flex';
+}
+function hideConfirmation() {
+  document.getElementById('confirmation-overlay').style.display = 'none';
+  confirmCallback = null;
+}
+document.getElementById('confirm-action').addEventListener('click', function() {
+  if (confirmCallback) confirmCallback();
+  hideConfirmation();
+});
+document.getElementById('cancel-action').addEventListener('click', hideConfirmation);
+document.getElementById('cancel-confirmation').addEventListener('click', hideConfirmation);
+
 // Reset button event listener
 document.getElementById('resetBtn').addEventListener('click', function() {
-  if (confirm('Sei sicuro di voler azzerare tutti i dati?')) {
+  showConfirmation('Sei sicuro di voler azzerare tutti i dati? Questo cancellerà la tabella e lo storico.', () => {
     fetch('/reset_data', {
       method: 'POST'
     }).then(res => res.json()).then(data => {
@@ -377,7 +606,12 @@ document.getElementById('resetBtn').addEventListener('click', function() {
         window.location.reload();
       }
     }).catch(err => console.error('Reset failed', err));
-  }
+  });
+});
+
+// Save on checkbox change
+document.querySelectorAll('.presence-checkbox').forEach(cb => {
+  cb.addEventListener('change', saveTabella);
 });
 </script>
 
@@ -430,9 +664,10 @@ body {
   background: #fff;
   box-shadow: 0 8px 32px rgba(65,88,208,0.10);
   border-radius: 18px;
-  overflow: hidden;
+  overflow: visible;
   margin: 0 auto;
   border: 1.5px solid #c850c0;
+  table-layout: fixed;
 }
 .tabella-moderna th {
   background: linear-gradient(-135deg, #c850c0, #4158d0);
@@ -443,6 +678,7 @@ body {
   border-bottom: 2px solid #4158d0;
   text-align: center;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 .tabella-moderna td {
   padding: 18px 10px;
@@ -458,7 +694,16 @@ body {
 .tabella-moderna tbody tr:hover td {
   background: #e9e9f7;
 }
-.input-nome, .input-punti, .input-prob {
+.input-nome, .input-prob {
+  width: 90%;
+  padding: 8px 12px;
+  border: 1.5px solid #bfc7e3;
+  border-radius: 8px;
+  font-size: 1.05rem;
+  background: #f7f8fa;
+  transition: border 0.2s, background 0.2s;
+}
+.input-punti {
   width: 90%;
   padding: 8px 12px;
   border: 1.5px solid #bfc7e3;
@@ -478,22 +723,45 @@ body {
   gap: 18px;
   justify-content: center;
   align-items: center;
-  min-width: 300px;
   margin: 0 auto;
 }
 .cerchio {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 2.5px solid #c850c0;
   box-shadow: 0 2px 8px rgba(65,88,208,0.10);
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #fff;
   background: transparent;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+.cerchio:hover {
+  transform: scale(1.1);
+}
+.cerchio::after {
+  content: attr(data-diff);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 1000;
+}
+.cerchio:hover::after {
+  visibility: visible;
 }
 
 @media (max-width: 1024px) and (min-width: 901px) {
@@ -586,4 +854,29 @@ body {
 #dice-main-number.illuminated {
   box-shadow: 0 8px 32px rgba(65,88,208,0.5), 0 0 64px rgba(200,80,192,0.5);
 }
+
+.voto-display {
+  display: inline-block !important;
+  width: 90% !important;
+  text-align: center !important;
+  font-size: 1.5rem !important;
+  font-weight: bold !important;
+  font-family: 'Arial Black', 'Arial', sans-serif !important;
+  color: #4158d0 !important;
+  background: transparent !important;
+  padding: 8px 12px !important;
+}
+
+.voto-low {
+  text-shadow: 0 0 5px #ff0000, 0 0 10px #ff0000;
+}
+
+.voto-high {
+  text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00;
+}
+
+.voto-gold {
+  text-shadow: 0 0 5px #ffd700, 0 0 10px #ffd700;
+}
 </style>
+
