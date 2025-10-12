@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, flash, jsonify
 from flask_login import login_required, current_user
 from . import db
-from .models import Tabella
+from .models import Tabella, Storico
 
 import json
 
@@ -63,6 +63,7 @@ def reset_data():
     ]
     # Delete all existing rows
     Tabella.query.delete()
+    Storico.query.delete()
     # Reinitialize with default data
     for i, cog in enumerate(cognomi, 1):
         new_row = Tabella(
@@ -98,3 +99,63 @@ def delete_note():
 
 
     return jsonify({})
+
+
+
+@views.route('/storico')
+@login_required
+def storico():
+    from flask_login import current_user
+    storico_data = Storico.query.filter_by(user_id=current_user.id).all()
+    return render_template('storico.html', storico_data=storico_data, user=current_user)
+
+
+
+@views.route('/save_storico', methods=['POST'])
+@login_required
+def save_storico():
+    data = request.get_json()
+    new_entry = Storico(
+        user_id=current_user.id,
+        cognome=data['cognome'],
+        difficolta=data['difficolta'],
+        risultato=data['risultato']
+    )
+    db.session.add(new_entry)
+    db.session.commit()
+    return jsonify({'success': True})
+
+@views.route('/delete_storico', methods=['POST'])
+@login_required
+def delete_storico():
+    data = request.get_json()
+    entry_id = data['id']
+    entry = Storico.query.get(entry_id)
+    if entry and entry.user_id == current_user.id:
+        cognome = entry.cognome
+        difficolta = entry.difficolta
+        risultato = entry.risultato
+        tab = Tabella.query.filter_by(cognome=cognome).first()
+        if tab:
+            # Get all storico for this cognome, ordered by date
+            all_storico = Storico.query.filter_by(cognome=cognome, user_id=current_user.id).order_by(Storico.data).all()
+            # Find the index of this entry
+            index = None
+            for i, s in enumerate(all_storico):
+                if s.id == entry_id:
+                    index = i
+                    break
+            if index is not None:
+                # Set the stato position back to '--'
+                pos = index * 2
+                if pos + 2 <= len(tab.stato):
+                    tab.stato = tab.stato[:pos] + '--' + tab.stato[pos+2:]
+                # Subtract punti if correct
+                if risultato == 'correct':
+                    add = 10 if difficolta == 'facile' else 20 if difficolta == 'normale' else 50
+                    tab.punti = max(0, tab.punti - add)
+        # Delete the storico entry
+        db.session.delete(entry)
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False}), 403
