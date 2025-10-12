@@ -22,11 +22,12 @@
       <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.8.1/dist/dotlottie-wc.js" type="module"></script>
 
     <title>{% block title %}Home{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='assets/asso.png') }}">
   </head>
   <body>
     <header style="width:100%; background: linear-gradient(-135deg, #c850c0, #4158d0); color:#fff; padding:0; margin-bottom:20px;">
       <div class="container-fluid" style="display:flex; align-items:center; justify-content:space-between; height:70px;">
-        <div style="font-size:2rem; font-weight:700; letter-spacing:1px;">Gamification</div>
+        <div style="font-size:2rem; font-weight:700; letter-spacing:1px;">Gamification 2.0</div>
         <nav style="display:flex; gap:24px;">
           <div style="display:flex; gap:24px;">
             {% if request.path in ['/', '/login', '/sign-up'] %}
@@ -36,10 +37,17 @@
             {% elif request.path == '/home' %}
               <a href="/home" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:3px solid #fff; padding-bottom:2px;">Home</a>
               <a href="/tabella" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; padding-bottom:2px;">Tabella</a>
+              <a href="/storico" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; padding-bottom:2px;">Storico</a>
               <a href="/logout" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; margin-left:32px;">Logout</a>
             {% elif request.path == '/tabella' %}
               <a href="/home" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:{% if request.path=='/home' %}3px solid #fff{% else %}none{% endif %}; padding-bottom:2px;">Home</a>
               <a href="/tabella" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:3px solid #fff; padding-bottom:2px;">Tabella</a>
+              <a href="/storico" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; padding-bottom:2px;">Storico</a>
+              <a href="/logout" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; margin-left:32px;">Logout</a>
+            {% elif request.path == '/storico' %}
+              <a href="/home" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:{% if request.path=='/home' %}3px solid #fff{% else %}none{% endif %}; padding-bottom:2px;">Home</a>
+              <a href="/tabella" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:{% if request.path=='/tabella' %}3px solid #fff{% else %}none{% endif %}; padding-bottom:2px;">Tabella</a>
+              <a href="/storico" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:3px solid #fff; padding-bottom:2px;">Storico</a>
               <a href="/logout" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; margin-left:32px;">Logout</a>
             {% else %}
               <a href="/home" style="color:#fff; font-size:1.1rem; text-decoration:none; font-weight:500; border-bottom:{% if request.path=='/home' %}3px solid #fff{% else %}none{% endif %}; padding-bottom:2px;">Home</a>
