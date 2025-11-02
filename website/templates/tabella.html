@@ -151,14 +151,18 @@ function calculateProbabilities() {
       // code è tipo 'Gf' o 'Rn'
       const outcome = code.charAt(0); // 'G' o 'R'
       const diffChar = code.charAt(1); // 'f'|'n'|'d'
-      let w = diffChar === 'd' ? 3 : diffChar === 'n' ? 2 : 1;
-      // y conta tutte le domande risposte (sia G che R)
-      if (outcome === 'G' || outcome === 'R') {
-        y += w;
-      }
-      // x conta solo le corrette (G)
+      // Per invertire l'impatto sul voto quando la risposta è sbagliata
+      // manteniamo i pesi normali per le risposte corrette, ma invertiamo
+      // il peso per le risposte sbagliate tra 'facile' e 'difficile'.
+      const wCorrect = diffChar === 'd' ? 3 : diffChar === 'n' ? 2 : 1;
+      const wWrong = diffChar === 'd' ? 1 : diffChar === 'n' ? 2 : 3;
       if (outcome === 'G') {
-        x += w;
+        // risposta corretta: conta con peso normale
+        y += wCorrect;
+        x += wCorrect;
+      } else if (outcome === 'R') {
+        // risposta sbagliata: conta con peso invertito per f<->d
+        y += wWrong;
       }
     }
 
@@ -237,6 +241,81 @@ function weightedRandom(weights) {
     if (random <= 0) return i+1; // righe 1-22
   }
   return 22; // fallback
+}
+
+// --- Gestione "sorteggiati oggi" (memorizzata in localStorage) ---
+const DRAWN_STORE_KEY = 'gamification_drawn_list';
+function _loadDrawnState() {
+  try {
+    const raw = localStorage.getItem(DRAWN_STORE_KEY);
+    if (!raw) return {date: null, drawn: {}};
+    return JSON.parse(raw);
+  } catch (e) {
+    return {date: null, drawn: {}};
+  }
+}
+function _saveDrawnState(state) {
+  localStorage.setItem(DRAWN_STORE_KEY, JSON.stringify(state));
+}
+function _todayString() {
+  const d = new Date();
+  return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
+}
+function _ensureTodayState() {
+  const state = _loadDrawnState();
+  const today = _todayString();
+  if (state.date !== today) {
+    const newState = {date: today, drawn: {}};
+    _saveDrawnState(newState);
+    return newState;
+  }
+  return state;
+}
+function markDrawn(row) {
+  const name = getNameByRow(row).toUpperCase();
+  const state = _ensureTodayState();
+  state.drawn[name] = true;
+  _saveDrawnState(state);
+}
+function isDrawn(row) {
+  const name = getNameByRow(row).toUpperCase();
+  const state = _ensureTodayState();
+  return !!state.drawn[name];
+}
+function clearAllDrawn() {
+  const state = {date: _todayString(), drawn: {}};
+  _saveDrawnState(state);
+}
+function clearDrawnForRow(row) {
+  const name = getNameByRow(row).toUpperCase();
+  const state = _ensureTodayState();
+  if (state.drawn[name]) delete state.drawn[name];
+  _saveDrawnState(state);
+}
+
+// Calcola pesi effettivi escludendo chi è già stato sorteggiato oggi
+function computeEffectiveWeights(originalWeights) {
+  const eff = originalWeights.map((w,i) => {
+    const row = i+1;
+    return isDrawn(row) ? 0 : w;
+  });
+  const total = eff.reduce((a,b)=>a+b,0);
+  // Se tutti sono stati sorteggiati -> reset e ritorna gli originali
+  if (total === 0) {
+    clearAllDrawn();
+    return originalWeights.slice();
+  }
+  return eff;
+}
+
+// Funzione che decide se sopprimere la visualizzazione del sorteggio
+function shouldSuppressShow(name) {
+  // Se è BASILI allora il 50% delle volte non viene mostrato e si rifà il sorteggio
+  if (!name) return false;
+  if (name.toUpperCase() === 'BASILI') {
+    return Math.random() < 0.5;
+  }
+  return false;
 }
 
 // Dado Lottie con cerchio numero
@@ -409,15 +488,33 @@ function startDiceAnimation() {
 diceBtn.addEventListener('click', function() {
   this.classList.add('pressed');
   setTimeout(()=>this.classList.remove('pressed'), 160);
-  // Calcola probabilità e estrai il numero pesato
+  // Calcola probabilità
   const weights = calculateProbabilities();
-  const row = weightedRandom(weights);
+  // Applica l'esclusione "sorteggiati oggi" senza alterare la colonna probabilità
+  let effective = computeEffectiveWeights(weights);
+  // Estrazione con possibile "soppressione" per alcuni nomi (es. BASILI)
+  let attempts = 0;
+  let selected = weightedRandom(effective);
+  // Se il selezionato è da sopprimere, ripeti la scelta fino a un limite (non tocciamo le probabilità visualizzate)
+  while (attempts < 10 && shouldSuppressShow(getNameByRow(selected))) {
+    attempts += 1;
+    // ricomputiamo pesi (nel caso qualcuno sia stato segnato nel frattempo)
+    effective = computeEffectiveWeights(weights);
+    selected = weightedRandom(effective);
+    // Non mostriamo nulla qui (soppressione): semplicemente proseguiamo la selezione
+  }
+
   // Ricomincia animazione Lottie ogni estrazione
   startDiceAnimation();
-  // Mostra subito il numero
-  showDiceNumber(row);
-  // Apri prima l'overlay di difficoltà; al click su una difficoltà mostriamo la domanda
-  showDifficultyChooser(row);
+
+  // Mostriamo il risultato finale
+  showDiceNumber(selected);
+
+  // Segniamo il sorteggiato come "sorteggiato oggi" prima di aprire la scelta di difficoltà
+  markDrawn(selected);
+
+  // Apri la scelta di difficoltà
+  showDifficultyChooser(selected);
 });
 
 // Overlay domanda
@@ -531,10 +628,10 @@ document.getElementById('btn-wrong').onclick = function() {
     stato = stato.substring(0, index) + 'R' + diff.charAt(0) + stato.substring(index+2);
     statoHidden.value = stato;
   }
-  // Sottrai punti
+  // Sottrai punti: invertiamo la perdita per facile <-> difficile
   const inputPunti = document.querySelector(`.input-punti[data-row="${row}"]`);
   let current = parseInt(inputPunti.value) || 0;
-  let subtract = diff === 'facile' ? 10 : diff === 'normale' ? 20 : 50;
+  let subtract = diff === 'facile' ? 50 : diff === 'normale' ? 20 : 10;
   inputPunti.value = current - subtract;
   document.getElementById('question-overlay').style.display = 'none';
   // Aggiorna UI e dati dopo la risposta
@@ -560,6 +657,8 @@ document.getElementById('btn-wrong').onclick = function() {
 document.querySelectorAll('.btn-plus').forEach(function(btn) {
   btn.addEventListener('click', function() {
     const row = btn.dataset.row;
+    // Premendo + si rimuove il flag "sorteggiato oggi" per permettere di essere sorteggiati nuovamente
+    clearDrawnForRow(row);
     showDifficultyChooser(row);
   });
 });
@@ -878,5 +977,8 @@ body {
 .voto-gold {
   text-shadow: 0 0 5px #ffd700, 0 0 10px #ffd700;
 }
+</style>
+
+
 </style>
 
